@@ -1,108 +1,224 @@
-#include <TFT_eSPI.h> 
-#include <SPI.h>
-TFT_eSPI tft = TFT_eSPI(); 
+#include "config.h"
+#include "tic.h"
+#include "7seg.h"
+TTGOClass *ttgo;
+int n=3;
 
- int fromTop=60;
- int fromLeft=10;
- int space=5;
- int boxSize=35 ;
- int playGround=3*boxSize+2*space;
+int numbers[3][3];
+int posX[3];
 
- int i=0;
- int j=0;
+int boxSize=64;
+int space=5;
+int start=19;
 
- bool player=0;
- int dd[3][3]={0};
- char sign[2]={'x','o'};
+bool player=0;
+bool gameover=0;
+bool irq = false;
 
-void setup(void) {
-  
-  tft.init();
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.drawString("TicTacTOe",5,12,4);
-  pinMode(0,INPUT_PULLUP);
-  pinMode(35,INPUT_PULLUP);
-  
-  tft.drawFastVLine(fromLeft+boxSize+space/2,fromTop,playGround,TFT_WHITE);
-   tft.drawFastVLine(1+fromLeft+boxSize+space/2,fromTop,playGround,TFT_WHITE);
-  tft.drawFastVLine(fromLeft+boxSize*2+space+space/2,fromTop,playGround,TFT_WHITE);
-  tft.drawFastVLine(1+fromLeft+boxSize*2+space+space/2,fromTop,playGround,TFT_WHITE);
-  tft.drawFastHLine(fromLeft,fromTop+boxSize+space/2,playGround,TFT_WHITE);
-   tft.drawFastHLine(fromLeft,1+fromTop+boxSize+space/2,playGround,TFT_WHITE);
-  tft.drawFastHLine(fromLeft,fromTop+boxSize*2+space+space/2,playGround,TFT_WHITE);
-  tft.drawFastHLine(fromLeft,1+fromTop+boxSize*2+space+space/2,playGround,TFT_WHITE);
-  
-  tft.drawRect((fromLeft+(i*boxSize)+(i*space)),(fromTop+(j*boxSize)+(j*space)),boxSize,boxSize,TFT_RED); 
- }
+void setup()
+{
+    ttgo = TTGOClass::getWatch();
+    ttgo->begin();
+    ttgo->openBL();
+    ttgo->tft->fillScreen(TFT_WHITE);
+    ttgo->tft->setFreeFont(&DSEG7_Classic_Regular_40);
+    ttgo->tft->setTextColor(TFT_BLACK);
+    pinMode(AXP202_INT, INPUT_PULLUP);
+    attachInterrupt(AXP202_INT, [] {
+       irq = true;
+    }, FALLING);
 
-void loop() {
+    //!Clear IRQ unprocessed  first
+    ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ | AXP202_VBUS_REMOVED_IRQ | AXP202_VBUS_CONNECT_IRQ | AXP202_CHARGING_IRQ, true);
+    ttgo->power->clearIRQ();
+   
+   // ttgo->tft->drawString("T-Watch Touch Test", 62, 90);
 
-if(digitalRead(0)==0)
-  {
-  tft.drawRect((fromLeft+(i*boxSize)+(i*space)),(fromTop+(j*boxSize)+(j*space)),boxSize,boxSize,TFT_BLACK);  
-  i=i+1;
-  if(i>2)
-      {
-      i=0;
-      j++;
-      }
-  if(j>2)
-  j=0;
-  tft.drawRect((fromLeft+(i*boxSize)+(i*space)),(fromTop+(j*boxSize)+(j*space)),boxSize,boxSize,TFT_RED);  
-  delay(300);
-  }
+   for(int i=0;i<n;i++)
+     posX[i]=(start+(i*boxSize)+(space*i));
 
-  if(digitalRead(35)==0)
-  {
-    tft.drawString(String(sign[player]),10+fromLeft+(i*boxSize)+(space*i),6+fromTop+(j*boxSize)+j*space,4);
-    if(player==0)
-    dd[i][j]=1;
+     ttgo->tft->fillRect(posX[1]-5,posX[0],4,206,TFT_BLACK);
+     ttgo->tft->fillRect(posX[2]-5,posX[0],4,206,TFT_BLACK);
 
-     if(player==1)
-     dd[i][j]=4;
-    
-    player=!player;
-    checkWiner();
-    delay(300);
+     ttgo->tft->fillRect(posX[0],posX[1]-5,206,4,TFT_BLACK);
+     ttgo->tft->fillRect(posX[0],posX[2]-5,206,4,TFT_BLACK);
+
+
+
+    for(int i=0;i<n;i++)
+    for(int j=0;j<n;j++){
+    //ttgo->tft->fillRect(posX[i],posX[j],boxSize,boxSize,TFT_BLUE);
+    numbers[j][i]=0;
     }
 
- }
-
- void checkWiner()
- {
-  for(int m=0;m<3;m++)
-  {
-  int score=0;
-  int hscore=0;
-  for(int n=0;n<3;n++)
-    {
-    score=score+dd[m][n];
-    hscore=hscore+dd[n][m];
     
-    if(score==3 || score==12)
-     {
-      tft.drawFastVLine(fromLeft+(m*space)+(boxSize*m)+boxSize/2,fromTop,playGround,TFT_RED);
-      tft.drawFastVLine(fromLeft+1+(m*space)+(boxSize*m)+boxSize/2,fromTop,playGround,TFT_RED);
-     }
+    pinMode(AXP202_INT, INPUT_PULLUP);
+    attachInterrupt(AXP202_INT, [] {
+        irq = true;
+    }, FALLING);
 
-     if(hscore==3 || hscore==12)
-     {
-      tft.drawFastHLine(fromLeft,fromTop+(m*space)+(boxSize*m)+boxSize/2,playGround,TFT_RED);
-      tft.drawFastHLine(fromLeft,fromTop+1+(m*space)+(boxSize*m)+boxSize/2,playGround,TFT_RED);
-     }
+    //!Clear IRQ unprocessed  first
+    ttgo->power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ | AXP202_VBUS_REMOVED_IRQ | AXP202_VBUS_CONNECT_IRQ | AXP202_CHARGING_IRQ, true);
+    ttgo->power->clearIRQ();
+
+   
+}
+
+void loop()
+{
+    int16_t x, y;
+    if(gameover==0)
+    if (ttgo->getTouch(x, y)) {
+        
+      for(int i=0;i<n;i++)
+        for(int j=0;j<n;j++)
+          {
+            if(x>posX[j] && x<posX[j]+boxSize && y>posX[i] && y<posX[i]+boxSize )
+            {
+              if(numbers[j][i]==0){ 
+               ttgo->tft->pushImage(posX[j],posX[i],boxSize,boxSize,tic[player]);
+                if(player==0)
+                numbers[j][i]=1;
+                    if(player==1)
+                numbers[j][i]=2;
+                //ttgo->tft->drawString(String(numbers[j][i]),posX[j],posX[i]);
+                player=!player;
+            
+                x=0;
+                y=0;
+              
+              }
+              
+            }
+            }
     }
 
-  if(dd[0][0]+dd[1][1]+dd[2][2]==3 || dd[0][0]+dd[2][2]+dd[1][1]==12 ){
-  tft.drawLine(fromLeft,fromTop,fromLeft+playGround, fromTop+playGround,TFT_RED);
+    
+   check();
+   if (irq) {
+        irq = false;
+        
+        ttgo->power->readIRQ();
+        
+        if (ttgo->power->isPEKShortPressIRQ()) {
+            // Clean power chip irq status
+            ttgo->power->clearIRQ();
+
+            reset();
+
+            // Set  touchscreen sleep
+            ttgo->displaySleep();
+
+            ttgo->powerOff();
+
+            //Set all channel power off
+            ttgo->power->setPowerOutPut(AXP202_LDO3, false);
+            ttgo->power->setPowerOutPut(AXP202_LDO4, false);
+            ttgo->power->setPowerOutPut(AXP202_LDO2, false);
+            ttgo->power->setPowerOutPut(AXP202_EXTEN, false);
+            ttgo->power->setPowerOutPut(AXP202_DCDC2, false);
+
+            // TOUCH SCREEN  Wakeup source
+            //esp_sleep_enable_ext1_wakeup(GPIO_SEL_38, ESP_EXT1_WAKEUP_ALL_LOW);
+            // PEK KEY  Wakeup source
+            esp_sleep_enable_ext1_wakeup(GPIO_SEL_35, ESP_EXT1_WAKEUP_ALL_LOW);
+            esp_deep_sleep_start();
+        }
+        ttgo->power->clearIRQ();
+
+  }
+  
+}
+
+
+
+void reset(){
+     ttgo->tft->fillScreen(TFT_WHITE);
+     gameover=0;
+     player=0;
+     for(int i=0;i<n;i++)
+    for(int j=0;j<n;j++){
+    ttgo->tft->fillRect(posX[i],posX[j],boxSize,boxSize,TFT_WHITE);
+    numbers[i][j]=0;
+ttgo->tft->fillRect(posX[1]-5,posX[0],4,206,TFT_BLACK);
+ ttgo->tft->fillRect(posX[2]-5,posX[0],4,206,TFT_BLACK);
+
+ ttgo->tft->fillRect(posX[0],posX[1]-5,206,4,TFT_BLACK);
+ ttgo->tft->fillRect(posX[0],posX[2]-5,206,4,TFT_BLACK);
+   
   
   }
+  }
 
-  if(dd[0][2]+dd[1][1]+dd[2][0]==3 || dd[0][2]+dd[2][0]+dd[1][1]==12 )
+  void check()
   {
-  tft.drawLine(fromLeft+playGround,fromTop,fromLeft, fromTop+playGround,TFT_RED);
- 
+    
+   for(int i=0;i<3;i++){ ///horizontsl test{
+   if(numbers[i][0]>0 && numbers[i][1]>0 && numbers[i][2]>0 ){
+   if(numbers[i][0]== 1 && numbers[i][1]==1 && numbers[i][2]==1 ){
+    gameover=1;
+   ttgo->tft->fillRect(posX[i]+31,9, 6,220,TFT_RED);
+   
+   }
+    if(numbers[i][0]== 2 && numbers[i][1]==2 && numbers[i][2]==2 ){
+      gameover=1;
+ ttgo->tft->fillRect(posX[i]+31,9, 6,220,TFT_RED);
+    }
+  }
   }
 
+     for(int i=0;i<3;i++){ ///horizontsl test{
+   if(numbers[0][i]>0 && numbers[1][i]>0 && numbers[2][i]>0 ){
+   if(numbers[0][i]== 1 && numbers[1][i]==1 && numbers[2][i]==1 ){
+    gameover=1;
+    
+        ttgo->tft->fillRect(9,posX[i]+31, 220,6,TFT_RED);
+  
+   }
+    if(numbers[0][i]== 2 && numbers[1][i]==2 && numbers[2][i]==2 ){
+      gameover=1;
+    ttgo->tft->fillRect(9,posX[i]+31, 220,6,TFT_RED);
+    }
   }
- }
+  }
+
+  if(numbers[0][0]>0 && numbers[1][1]>0 && numbers[2][2]>0) //digonal 1
+       {
+          if(numbers[0][0]==1 && numbers[1][1]==1 && numbers[2][2]==1){
+            gameover=1;
+      ttgo->tft->drawLine(13,14,219,220,TFT_RED);
+        ttgo->tft->drawLine(14,14,220,220,TFT_RED);
+        ttgo->tft->drawLine(15,14,221,220,TFT_RED);
+          }
+
+             if(numbers[0][0]==2 && numbers[1][1]==2 && numbers[2][2]==2){
+        gameover=1;
+        ttgo->tft->drawLine(13,14,219,220,TFT_RED);
+        ttgo->tft->drawLine(14,14,220,220,TFT_RED);
+        ttgo->tft->drawLine(15,14,221,220,TFT_RED);
+          }
+        }
+
+          if(numbers[0][2]>0 && numbers[1][1]>0 && numbers[2][0]>0) //digonal 2
+       {
+          if(numbers[0][2]==1 && numbers[1][1]==1 && numbers[2][0]==1){
+            gameover=1;
+      
+        ttgo->tft->drawLine(14,220,220,14,TFT_RED);
+        ttgo->tft->drawLine(14,219,220,13,TFT_RED);
+        ttgo->tft->drawLine(14,221,220,15,TFT_RED);
+        
+          }
+
+             if(numbers[0][2]==2 && numbers[1][1]==2 && numbers[2][0]==2){
+              gameover=1;
+        
+     
+        ttgo->tft->drawLine(14,220,220,14,TFT_RED);
+        ttgo->tft->drawLine(14,219,220,13,TFT_RED);
+        ttgo->tft->drawLine(14,221,220,15,TFT_RED);
+     
+          }
+        }
+    
+    }
